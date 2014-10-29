@@ -1,0 +1,94 @@
+/*
+* Add_two_arrays.asm
+*
+* Created: 2014-10-22 17:42:21
+* Authors: 
+*/
+#include "m32def.inc"
+
+.EQU LEN = 0x2
+; Segment danych
+.DSEG
+; Dwie tablice o rozmiarze stałym
+tab1: .BYTE LEN
+tab2: .BYTE LEN
+
+
+
+
+
+
+; Segment kodu
+.CSEG
+
+LDI R16,HIGH(RAMEND)	;INICJALIZACJA STOSU
+OUT SPH,R16
+LDI R17,LOW(RAMEND)
+OUT SPL,R17
+
+; Wyczyszczenuie wszystkich flag
+CLC
+; Wypełniamy rejestr 18 jedynkami
+LDI R18,0xff
+; Rejestr X wykorzystujemy jako wskaznik pierwszej tablicy
+LDI XL, LOW(tab1)
+LDI XH, HIGH(tab1)
+; Rejestr Y wykorzystujemy jako wskaznik do drugiej tablicy
+LDI YL, LOW(tab2)
+LDI YH, HIGH(tab2)
+; Wpisujemy wielkosc tablic do rejestru Z
+LDI ZL, LOW(LEN)
+LDI ZH, HIGH(LEN)
+; Poczatek petli
+
+CALL DODAJ ; WYWOLANIE DODAJ
+
+
+
+LOOP:		;PETLA W ZATRZYMUJACA WYKONANA PO DODAJ
+RJMP LOOP
+DODAJ:		
+
+PUSH R14		; PUSH NA STOS 
+PUSH R16
+PUSH R17
+PUSH R18
+
+
+DODAWANIE_LICZB:
+; Sprawdzamy czy pierwsa połówka Z jest różna od 0
+CPI ZL,0
+; Jeśli jest różna to napewno musimy jeszcze kontynuować
+BRNE AFTER_IF
+; Jeśli jest równa 0 to sprawdzamy drugą połówkę
+CPI ZH,0
+BREQ LOOP
+AFTER_IF:
+
+LD R16,X+
+; Do rejestru 17 wpisujemy wartos wskazywana przez Y
+LD R17,Y
+CLC
+ADD R14, R18
+ADC R17, R16
+
+CLR R14
+ADC R14, R0
+ST Y+,R17
+; Z--
+CLC
+SBCI ZL, 1
+SBCI ZH, 0
+CLZ
+RJMP DODAWANIE_LICZB
+
+
+POP R18		;ODZYSKANIE WARTOSCI REJESTROW ZE STOSU
+POP R17
+POP R16
+POP R14
+
+RET			;POWROT DO CALL 
+
+
+
