@@ -1,0 +1,91 @@
+/*
+ * GccApplication1.c
+ *
+ * Created: 2014-11-05 18:02:55
+ *  Author: student
+ */ 
+
+
+#include <avr/io.h>
+#include <avr/interrupt.h> 
+typedef void(*taskFunc)(*void);
+#define ELEM 10;
+typedef struct  
+{
+	taskFunc function;
+	int interval;
+	int toGo;
+	bool ready;
+	void* ptr;
+}TASK;
+
+static TASK Tasks[ELEM];
+static int currA=0;
+void timer0_init()
+{
+	// CTC mode
+	TCCR0 |= (1 << WGM01);
+	TIMSK |= (1<<OCIE0);
+	
+	// initialize counter
+	TCNT1 = 0;
+	
+	// initialize compare value
+	OCR0 = 250;
+	//presscaller 64
+	TCCR0|=(1<<CS01)|(1<<CS00);
+	
+}
+ISR(TIMER0_COMP_vect){
+	static int i = 0;
+	i++;
+	for(int j=0;j<ELEM;j++)
+	{
+		
+		if(--TASK[i].toGo==0){
+			TASK[i].ready=1;
+			TASK[i].toGo=TASK[i].interval;
+		}			
+	}
+}
+void addTask(taskFunc f,int i, int t, bool r,void p){
+	
+	TASK task;
+	task.function=f;
+	task.interval=i;
+	task.toGo=t;
+	task.ready=r;
+	task.ptr=p;
+	if(currA!=ELEM-1){
+	TASK[currA]=task;
+	currA++;
+	}	
+}
+void deleteTask(int index){
+	
+	
+}
+
+void execute(){
+	
+	int a=-1;
+	while(1)
+	{
+		if(a!=-1){
+		if(Tasks[a].ready==1){
+			Tasks[a].function(Tasks[a].ptr);
+			a=0;
+		}
+		
+		a++;
+		if(a==currA)
+		a=0;
+		}
+	
+}
+int main(void) 
+{
+	sei(); //wlaczenie przerwan
+	timer0_init();	//inicjowanie timera
+	
+}
