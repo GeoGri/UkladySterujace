@@ -1,91 +1,121 @@
 /*
- * GccApplication1.c
- *
- * Created: 2014-11-05 18:02:55
- *  Author: student
- */ 
-
-
+* GccApplication1.c
+*
+* Created: 2014-11-05 18:02:55
+* Author: student
+*/
 #include <avr/io.h>
-#include <avr/interrupt.h> 
-typedef void(*taskFunc)(*void);
-#define ELEM 10;
-typedef struct  
+#include <avr/interrupt.h>
+typedef void(*taskFunc)(void*);
+#define MAX_NUMBER_OF_TASKS 10
+#define NULL 0
+typedef struct
 {
 	taskFunc function;
 	int interval;
 	int toGo;
-	bool ready;
+	char ready;
 	void* ptr;
 }TASK;
-
-static TASK Tasks[ELEM];
+static TASK Tasks[MAX_NUMBER_OF_TASKS];
 static int currA=0;
 void timer0_init()
 {
 	// CTC mode
 	TCCR0 |= (1 << WGM01);
 	TIMSK |= (1<<OCIE0);
-	
 	// initialize counter
-	TCNT1 = 0;
-	
+	TCNT0 = 0;
 	// initialize compare value
 	OCR0 = 250;
 	//presscaller 64
 	TCCR0|=(1<<CS01)|(1<<CS00);
-	
 }
-ISR(TIMER0_COMP_vect){
+void schedule(){
 	static int i = 0;
 	i++;
-	for(int j=0;j<ELEM;j++)
+	for(int j=0;j<MAX_NUMBER_OF_TASKS;j++)
 	{
-		
-		if(--TASK[i].toGo==0){
-			TASK[i].ready=1;
-			TASK[i].toGo=TASK[i].interval;
-		}			
+		if(--Tasks[j].toGo<=0){
+			Tasks[j].ready=1;
+			Tasks[j].toGo=Tasks[j].interval;
+		}
 	}
 }
-void addTask(taskFunc f,int i, int t, bool r,void p){
+void init_schedule(){
+	TASK task;
+	task.function=NULL;
+	task.interval=0; 
+	task.toGo=0;
+	task.ready=0;
+	task.ptr=NULL;
 	
+	for(int i=0;i<MAX_NUMBER_OF_TASKS;i++){
+		Tasks[i]=task;
+	}
+}
+ISR(TIMER0_COMP_vect){
+	schedule();
+	
+}
+void addTask(int priorytet,int i,taskFunc f,void* p){
 	TASK task;
 	task.function=f;
 	task.interval=i;
-	task.toGo=t;
-	task.ready=r;
+	task.toGo=i;
+	task.ready=0;
 	task.ptr=p;
-	if(currA!=ELEM-1){
-	TASK[currA]=task;
-	currA++;
-	}	
+	if(priorytet<MAX_NUMBER_OF_TASKS)
+	Tasks[priorytet]=task;
+	
 }
 void deleteTask(int index){
-	
-	
 }
-
 void execute(){
 	
-	int a=-1;
+	int a=0;
 	while(1)
 	{
 		if(a!=-1){
-		if(Tasks[a].ready==1){
-			Tasks[a].function(Tasks[a].ptr);
+			if(Tasks[a].ready==1){
+				(*Tasks[a].function)(Tasks[a].ptr);
+				a=0;
+				Tasks[a].ready=0;
+			}
+			a++;
+			if(a==MAX_NUMBER_OF_TASKS)
 			a=0;
 		}
-		
-		a++;
-		if(a==currA)
-		a=0;
-		}
-	
-}
-int main(void) 
+	}
+}	
+
+void keyboardTask(void * a)
 {
-	sei(); //wlaczenie przerwan
-	timer0_init();	//inicjowanie timera
-	
+	static i=0;
+	i++;
 }
+
+void serialReceiveTask(void * b)
+{
+	static i=0;
+	i++;
+}
+void watchDogTask(void * c)
+{
+	static i=0;
+	i++;
+}
+
+
+	int main(void)
+	{
+		sei(); //wlaczenie przerwan
+		timer0_init(); //inicjowanie timera
+		init_schedule();
+		addTask(0,50, keyboardTask, NULL);
+		addTask(1, 20, serialReceiveTask, NULL);
+		addTask(7, 500, watchDogTask, NULL);
+		execute();
+
+		return 0;
+	}
